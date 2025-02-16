@@ -9,7 +9,7 @@
         </button>
     </div>
 
-    <div class="grid grid-cols-4 p-3 gap-3">
+    <div class="grid sm:grid-cols-2 md:grid-cols-4  p-3 gap-3">
 
         {{-- Device Selection --}}
         <div>

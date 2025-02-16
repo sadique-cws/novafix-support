@@ -1,4 +1,4 @@
-<div class="max-w-4xl mx-auto p-6 bg-white shadow-md rounded-lg">
+<div class=" mx-auto p-6 bg-white shadow-md rounded-lg">
     <h2 class="text-2xl font-bold mb-4">Manage Models</h2>
 
     @if (session()->has('message'))

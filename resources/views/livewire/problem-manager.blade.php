@@ -1,4 +1,4 @@
-<div class="max-w-4xl mx-auto p-6 bg-white shadow rounded">
+<div class="mx-auto p-6 bg-white shadow rounded">
     <h2 class="text-lg font-semibold mb-4">{{ $editing ? 'Edit Problem' : 'Add Problem' }}</h2>
 
     @if (session()->has('message'))

@@ -1,4 +1,4 @@
-<div class="max-w-4xl mx-auto p-4">
+<div class=" mx-auto p-4">
     <h2 class="text-xl font-bold mb-4">Manage Brands</h2>
 
     @if (session()->has('message'))
