@@ -7,6 +7,7 @@ use App\Livewire\BrandManager;
 use App\Livewire\DeviceManager;
 use App\Livewire\ModelManager;
 use App\Livewire\ProblemManager;
+use Livewire\Livewire;
 use App\Livewire\StaffDiagnosis;
 
 Route::view('dashboard', 'dashboard')
@@ -18,6 +19,9 @@ Route::view('profile', 'profile')
     ->name('profile');
 
 
+Livewire::setUpdateRoute(function ($handle) {
+    return Route::post('/custom/livewire/update', $handle);
+});
 
 
 
