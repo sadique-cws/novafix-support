@@ -46,7 +46,9 @@
                     <td class="border p-2">{{ $brand->device->name }}</td>
                     <td class="border p-2 space-x-2">
                         <button wire:click="editBrand({{ $brand->id }})" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+                       @if ($brand->models->isEmpty())
                         <button wire:click="deleteBrand({{ $brand->id }})" class="bg-red-500 text-white px-3 py-1 rounded">Delete</button>
+                       @endif
                     </td>
                 </tr>
             @endforeach

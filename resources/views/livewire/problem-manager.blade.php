@@ -57,8 +57,10 @@
                     <td class="border border-gray-300 px-4 py-2 space-x-2">
                         <button wire:click="editProblem({{ $problem->id }})"
                             class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">Edit</button>
+                            @if($problem->questions->isEmpty())
                         <button wire:click="deleteProblem({{ $problem->id }})"
                             class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Delete</button>
+                            @endif
                     </td>
                 </tr>
             @endforeach

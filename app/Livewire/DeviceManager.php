@@ -53,7 +53,7 @@ class DeviceManager extends Component
         session()->flash('message', 'Device deleted successfully.');
     }
 
-    private function resetInput()
+    public function resetInput()
     {
         $this->name = '';
         $this->editingId = null;
