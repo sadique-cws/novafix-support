@@ -7,8 +7,8 @@ use App\Livewire\BrandManager;
 use App\Livewire\DeviceManager;
 use App\Livewire\ModelManager;
 use App\Livewire\ProblemManager;
-use Livewire\Livewire;
 use App\Livewire\StaffDiagnosis;
+use Livewire\Livewire;
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
@@ -20,7 +20,7 @@ Route::view('profile', 'profile')
 
 
 Livewire::setUpdateRoute(function ($handle) {
-    return Route::post('/custom/livewire/update', $handle);
+    return Route::post('/solution/public/livewire/update', $handle);
 });
 
 
