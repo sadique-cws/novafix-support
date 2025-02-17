@@ -10,6 +10,14 @@ use App\Livewire\ProblemManager;
 use App\Livewire\StaffDiagnosis;
 use Livewire\Livewire;
 
+use Illuminate\Support\Facades\Artisan;
+
+Route::get('/clear-view', function () {
+    Artisan::call('view:clear');
+    return "View cache cleared successfully!";
+});
+
+
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
