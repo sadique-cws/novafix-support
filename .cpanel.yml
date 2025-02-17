@@ -1,0 +1,6 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/novafixi/solution.novafix.in/
+    - /bin/cp -R * $DEPLOYPATH
+    
