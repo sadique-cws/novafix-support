@@ -20,7 +20,6 @@ class SupportDiagnosis extends Component
     public $questions = [];
     public $questionTree = [];
 
-
     public $selectedDevice;
     public $selectedBrand;
     public $selectedModel;
@@ -28,7 +27,7 @@ class SupportDiagnosis extends Component
     public $currentQuestion;
 
     public $newQuestionText;
-    public $newQuestionAnswer; // Stores 'yes' or 'no' for linking the new question
+    public $newQuestionAnswer;
 
     public $editingQuestionId = null;
     public $editingQuestionText = '';
@@ -38,32 +37,27 @@ class SupportDiagnosis extends Component
         $this->devices = Device::all();
     }
 
-
     public function editQuestion($questionId)
     {
-        $this->editingQuestionId = $questionId;
-        $this->editingQuestionText = Question::find($questionId)->question_text;
+        $question = Question::find($questionId);
+        if ($question) {
+            $this->editingQuestionId = $questionId;
+            $this->editingQuestionText = $question->question_text;
+        }
     }
 
-    // Update the Question
     public function updateQuestion()
     {
-        $this->validate([
-            'editingQuestionText' => 'required|min:3',
-        ]);
+        $this->validate(['editingQuestionText' => 'required|min:3']);
 
-        // Debugging: Check if the ID exists
         $question = Question::find($this->editingQuestionId);
-
         if (!$question) {
             session()->flash('error', 'Question not found.');
             return;
         }
 
-        // Update the question
         $question->update(['question_text' => $this->editingQuestionText]);
 
-        // Reset variables after update
         $this->editingQuestionId = null;
         $this->editingQuestionText = '';
         $this->currentQuestion = $question;
@@ -71,7 +65,6 @@ class SupportDiagnosis extends Component
         session()->flash('message', 'Question updated successfully.');
     }
 
-    // Cancel Editing
     public function cancelEdit()
     {
         $this->editingQuestionId = null;
@@ -81,35 +74,44 @@ class SupportDiagnosis extends Component
     public function updatedSelectedDevice()
     {
         $this->brands = Brand::where('device_id', $this->selectedDevice)->get();
-        $this->selectedBrand = null;
-        $this->models = [];
-        $this->problems = [];
+        $this->resetSelections(['brand', 'model', 'problem']);
     }
 
     public function updatedSelectedBrand()
     {
         $this->models = ModelTable::where('brand_id', $this->selectedBrand)->get();
-        $this->selectedModel = null;
-        $this->problems = [];
+        $this->resetSelections(['model', 'problem']);
     }
 
     public function updatedSelectedModel()
     {
         $this->problems = Problem::where('model_id', $this->selectedModel)->get();
-        $this->selectedProblem = null;
+        $this->resetSelections(['problem']);
     }
-
 
     public function updatedSelectedProblem()
     {
         $this->currentQuestion = Question::where('problem_id', $this->selectedProblem)->first();
+        if ($this->currentQuestion) {
+            $this->loadQuestionTree();
+        }
+    }
+
+    public function createFirstQuestion()
+    {
+        $this->validate(['newQuestionText' => 'required|min:3']);
+
+        $this->currentQuestion = Question::create([
+            'problem_id' => $this->selectedProblem,
+            'question_text' => $this->newQuestionText,
+        ]);
+
+        $this->newQuestionText = '';
         $this->loadQuestionTree();
     }
 
     public function loadQuestionTree()
     {
-        if (!$this->selectedProblem) return;
-
         $this->questionTree = $this->buildTree($this->currentQuestion);
     }
 
@@ -124,15 +126,10 @@ class SupportDiagnosis extends Component
         ];
     }
 
-
-
     public function answerQuestion($answer)
     {
-        if (!$this->currentQuestion) {
-            return;
-        }
+        if (!$this->currentQuestion) return;
 
-        // Save the user's answer
         UserAnswer::create([
             'user_id' => Auth::id(),
             'question_id' => $this->currentQuestion->id,
@@ -143,13 +140,11 @@ class SupportDiagnosis extends Component
             'selected_answer' => $answer,
         ]);
 
-
         if ($answer === 'yes' && $this->currentQuestion->yes_question_id) {
             $this->currentQuestion = Question::find($this->currentQuestion->yes_question_id);
         } elseif ($answer === 'no' && $this->currentQuestion->no_question_id) {
             $this->currentQuestion = Question::find($this->currentQuestion->no_question_id);
         } else {
-            // No next question, show form to create new question
             $this->newQuestionText = '';
             $this->newQuestionAnswer = $answer;
         }
@@ -157,17 +152,13 @@ class SupportDiagnosis extends Component
 
     public function createQuestion()
     {
-        $this->validate([
-            'newQuestionText' => 'required|string',
-        ]);
+        $this->validate(['newQuestionText' => 'required|string']);
 
-        // Create new question
         $newQuestion = Question::create([
             'problem_id' => $this->selectedProblem,
             'question_text' => $this->newQuestionText,
         ]);
 
-        // Link to previous question
         if ($this->newQuestionAnswer === 'yes') {
             $this->currentQuestion->yes_question_id = $newQuestion->id;
         } else {
@@ -176,14 +167,12 @@ class SupportDiagnosis extends Component
 
         $this->currentQuestion->save();
 
-        // Check if we need the NO question next
-        if ($this->newQuestionAnswer === 'yes') {
-            $this->newQuestionAnswer = 'no'; // Now, create a No answer question
-            $this->newQuestionText = ''; // Reset for new input
+        if (!$this->currentQuestion->yes_question_id || !$this->currentQuestion->no_question_id) {
+            $this->newQuestionAnswer = $this->newQuestionAnswer === 'yes' ? 'no' : null;
+            $this->newQuestionText = '';
         } else {
-            // If both Yes and No answers are added, move to the question tree
             $this->currentQuestion = Question::find($this->currentQuestion->id);
-            $this->newQuestionAnswer = null; // Stop the question creation form
+            $this->newQuestionAnswer = null;
         }
     }
 
@@ -204,8 +193,18 @@ class SupportDiagnosis extends Component
         $this->problems = [];
     }
 
+    private function resetSelections($fields)
+    {
+        foreach ($fields as $field) {
+            $this->{'selected' . ucfirst($field)} = null;
+        }
+    }
+
     public function render()
     {
-        return view('livewire.support-diagnosis');
+        return view('livewire.support-diagnosis', [
+            'showCreateFirst' => !$this->currentQuestion,
+            'showAddQuestion' => $this->currentQuestion && (!$this->currentQuestion->yes_question_id || !$this->currentQuestion->no_question_id),
+        ]);
     }
 }
