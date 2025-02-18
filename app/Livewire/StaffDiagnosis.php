@@ -71,7 +71,7 @@ class StaffDiagnosis extends Component
     private function buildTree($question)
     {
         if (!$question) return null;
-
+        
         return [
             'text' => $question->question_text,
             'yes' => $question->yes_question_id ? $this->buildTree(Question::find($question->yes_question_id)) : null,

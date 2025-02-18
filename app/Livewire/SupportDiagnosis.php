@@ -105,7 +105,6 @@ class SupportDiagnosis extends Component
             'problem_id' => $this->selectedProblem,
             'question_text' => $this->newQuestionText,
         ]);
-
         $this->newQuestionText = '';
         $this->loadQuestionTree();
     }
@@ -125,6 +124,20 @@ class SupportDiagnosis extends Component
             'no' => $question->no_question_id ? $this->buildTree(Question::find($question->no_question_id)) : null,
         ];
     }
+
+    public function previousQuestion()
+    {
+        // Find the parent question where the current question appears in yes_question_id or no_question_id
+        $parentQuestion = Question::where('yes_question_id', $this->currentQuestion->id)
+            ->orWhere('no_question_id', $this->currentQuestion->id)
+            ->first();
+
+        // If a parent question exists, update the current question
+        if ($parentQuestion) {
+            $this->currentQuestion = $parentQuestion;
+        }
+    }
+
 
     public function answerQuestion($answer)
     {
