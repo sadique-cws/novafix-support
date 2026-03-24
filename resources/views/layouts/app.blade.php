@@ -15,23 +15,15 @@
         @vite(['resources/css/app.css', 'resources/js/app.jsx'])
             </head>
     <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
-            <livewire:layout.navigation />
-
-            <!-- Page Heading -->
+        <x-app-shell>
             @if (isset($header))
-                <header class="bg-white dark:bg-gray-800 shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
+                <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    {{ $header }}
+                </div>
             @endif
 
-            <!-- Page Content -->
-            <main>
-                {{ $slot }}
-            </main>
-        </div>
+            {{ $slot }}
+        </x-app-shell>
         <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
 
     </body>

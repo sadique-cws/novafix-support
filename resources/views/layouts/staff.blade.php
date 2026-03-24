@@ -13,11 +13,9 @@
 </head>
 
 <body>
-
-    <livewire:layout.navigation />
-    <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
+    <x-app-shell>
         {{ $slot }}
-    </div>
+    </x-app-shell>
 
 
 
