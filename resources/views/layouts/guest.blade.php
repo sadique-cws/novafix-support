@@ -25,8 +25,7 @@
                             <div class="flex flex-col justify-between w-full">
                                 <div>
                                     <a href="/" class="inline-flex items-center gap-3" wire:navigate>
-                                        <x-application-logo class="h-10 w-10 fill-current text-indigo-700" />
-                                        <div>
+                                        <div class="ml-10">
                                             <div class="text-xl font-semibold text-gray-900">NovaFix Support</div>
                                             <div class="text-sm text-gray-600">Service Center Diagnosis System</div>
                                         </div>
