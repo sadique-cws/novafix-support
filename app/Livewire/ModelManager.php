@@ -13,6 +13,7 @@ class ModelManager extends Component
 
     public $name, $brand_id, $editingId;
     public $brands;
+    public $modalName = 'model-form';
 
     public function mount()
     {
@@ -34,6 +35,13 @@ class ModelManager extends Component
 
         session()->flash('message', 'Model added successfully!');
         $this->resetInput();
+        $this->dispatch('close-modal', name: $this->modalName);
+    }
+
+    public function startCreate()
+    {
+        $this->resetInput();
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function editModel($id)
@@ -42,6 +50,7 @@ class ModelManager extends Component
         $this->editingId = $id;
         $this->name = $model->name;
         $this->brand_id = $model->brand_id;
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function updateModel()
@@ -55,12 +64,19 @@ class ModelManager extends Component
 
         session()->flash('message', 'Model updated successfully!');
         $this->resetInput();
+        $this->dispatch('close-modal', name: $this->modalName);
     }
 
     public function deleteModel($id)
     {
         ModelTable::destroy($id);
         session()->flash('message', 'Model deleted successfully!');
+    }
+
+    public function cancel()
+    {
+        $this->resetInput();
+        $this->dispatch('close-modal', name: $this->modalName);
     }
 
     public function resetInput()

@@ -37,6 +37,8 @@ class SupportDiagnosis extends Component
     public $sourceQuestionId = null;
     public $targetAttachToQuestionId = null;
     public $targetAttachBranch = 'yes'; // yes|no|root
+    public $modalFirstQuestion = 'sd-first-question';
+    public $modalNewQuestion = 'sd-new-question';
 
     public function mount()
     {
@@ -113,6 +115,7 @@ class SupportDiagnosis extends Component
         ]);
         $this->newQuestionText = '';
         $this->loadQuestionTree();
+        $this->dispatch('close-modal', name: $this->modalFirstQuestion);
     }
 
     public function loadQuestionTree()
@@ -166,7 +169,36 @@ class SupportDiagnosis extends Component
         } else {
             $this->newQuestionText = '';
             $this->newQuestionAnswer = $answer;
+            $this->dispatch('open-modal', name: $this->modalNewQuestion);
         }
+    }
+
+    public function openFirstQuestionModal()
+    {
+        $this->dispatch('open-modal', name: $this->modalFirstQuestion);
+    }
+
+    public function openNewQuestionModal()
+    {
+        if (!$this->newQuestionAnswer) {
+            session()->flash('error', 'Answer a question (YES/NO) to choose which branch to add.');
+            return;
+        }
+
+        $this->dispatch('open-modal', name: $this->modalNewQuestion);
+    }
+
+    public function cancelFirstQuestion()
+    {
+        $this->newQuestionText = '';
+        $this->dispatch('close-modal', name: $this->modalFirstQuestion);
+    }
+
+    public function cancelNewQuestion()
+    {
+        $this->newQuestionText = '';
+        $this->newQuestionAnswer = null;
+        $this->dispatch('close-modal', name: $this->modalNewQuestion);
     }
 
     public function createQuestion()
@@ -193,6 +225,8 @@ class SupportDiagnosis extends Component
             $this->currentQuestion = Question::find($this->currentQuestion->id);
             $this->newQuestionAnswer = null;
         }
+
+        $this->dispatch('close-modal', name: $this->modalNewQuestion);
     }
 
     public function resetSelection()

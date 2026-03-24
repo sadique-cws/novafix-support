@@ -12,45 +12,16 @@
         </div>
     @endif
 
-    <div class="mt-6 grid gap-4 lg:grid-cols-3">
-        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <h3 class="text-sm font-semibold text-gray-800">{{ $editingId ? 'Edit Brand' : 'Create Brand' }}</h3>
-
-            <form wire:submit.prevent="{{ $editingId ? 'updateBrand' : 'createBrand' }}" class="mt-4 space-y-3">
-                <div>
-                    <label class="text-xs font-medium text-gray-700">Brand name</label>
-                    <input type="text" wire:model="name" placeholder="e.g. Acer"
-                        class="mt-1 w-full rounded-lg border border-gray-300 p-2">
-                    @error('name') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
-                </div>
-
-                <div>
-                    <label class="text-xs font-medium text-gray-700">Device</label>
-                    <select wire:model="device_id" class="mt-1 w-full rounded-lg border border-gray-300 p-2">
-                        <option value="">Select Device</option>
-                        @foreach($devices as $device)
-                            <option value="{{ $device->id }}">{{ $device->name }}</option>
-                        @endforeach
-                    </select>
-                    @error('device_id') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
-                </div>
-
-                <div class="flex items-center gap-2 pt-1">
-                    <button type="submit"
-                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                        {{ $editingId ? 'Update' : 'Create' }}
-                    </button>
-                    @if($editingId)
-                        <button type="button" wire:click="resetInput"
-                            class="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
-                            Cancel
-                        </button>
-                    @endif
-                </div>
-            </form>
+    <div class="mt-6">
+        <div class="flex items-center justify-end">
+            <button type="button"
+                wire:click="startCreate"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                + Add Brand
+            </button>
         </div>
 
-        <div class="lg:col-span-2">
+        <div class="mt-4">
             <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -94,4 +65,37 @@
             </div>
         </div>
     </div>
+
+    <x-modal :name="$modalName" :title="$editingId ? 'Edit Brand' : 'Add Brand'">
+        <form wire:submit.prevent="{{ $editingId ? 'updateBrand' : 'createBrand' }}" class="space-y-4">
+            <div>
+                <label class="text-xs font-medium text-gray-700">Brand name</label>
+                <input type="text" wire:model="name" placeholder="e.g. Acer"
+                    class="mt-1 w-full rounded-lg border border-gray-300 p-2">
+                @error('name') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+            </div>
+
+            <div>
+                <label class="text-xs font-medium text-gray-700">Device</label>
+                <select wire:model="device_id" class="mt-1 w-full rounded-lg border border-gray-300 p-2">
+                    <option value="">Select Device</option>
+                    @foreach($devices as $device)
+                        <option value="{{ $device->id }}">{{ $device->name }}</option>
+                    @endforeach
+                </select>
+                @error('device_id') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+            </div>
+
+            <div class="flex items-center justify-end gap-2">
+                <button type="button" wire:click="cancel"
+                    class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    {{ $editingId ? 'Update' : 'Create' }}
+                </button>
+            </div>
+        </form>
+    </x-modal>
 </div>

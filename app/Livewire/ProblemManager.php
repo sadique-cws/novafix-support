@@ -14,6 +14,7 @@ class ProblemManager extends Component
     public $problemId, $name, $model_id;
     public $editing = false;
     public $models;
+    public $modalName = 'problem-form';
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -36,6 +37,13 @@ class ProblemManager extends Component
 
         session()->flash('message', 'Problem created successfully.');
         $this->resetForm();
+        $this->dispatch('close-modal', name: $this->modalName);
+    }
+
+    public function startCreate()
+    {
+        $this->resetForm();
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function editProblem($id)
@@ -45,6 +53,7 @@ class ProblemManager extends Component
         $this->name = $problem->name;
         $this->model_id = $problem->model_id;
         $this->editing = true;
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function updateProblem()
@@ -59,12 +68,19 @@ class ProblemManager extends Component
 
         session()->flash('message', 'Problem updated successfully.');
         $this->resetForm();
+        $this->dispatch('close-modal', name: $this->modalName);
     }
 
     public function deleteProblem($id)
     {
         Problem::destroy($id);
         session()->flash('message', 'Problem deleted successfully.');
+    }
+
+    public function cancel()
+    {
+        $this->resetForm();
+        $this->dispatch('close-modal', name: $this->modalName);
     }
 
     public function resetForm()

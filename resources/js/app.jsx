@@ -48,6 +48,58 @@ function initDrawer() {
 
 initDrawer();
 
+function initModal() {
+    const openModal = (name) => {
+        const modal = document.querySelector(`[data-modal="${name}"]`);
+        const overlay = document.querySelector(`[data-modal-overlay="${name}"]`);
+        if (!modal || !overlay) return;
+        overlay.classList.remove('hidden');
+        modal.classList.remove('hidden');
+        document.documentElement.classList.add('overflow-hidden');
+    };
+
+    const closeModal = (name) => {
+        const modal = document.querySelector(`[data-modal="${name}"]`);
+        const overlay = document.querySelector(`[data-modal-overlay="${name}"]`);
+        if (!modal || !overlay) return;
+        overlay.classList.add('hidden');
+        modal.classList.add('hidden');
+        document.documentElement.classList.remove('overflow-hidden');
+    };
+
+    window.CodexUI = window.CodexUI || {};
+    window.CodexUI.openModal = openModal;
+    window.CodexUI.closeModal = closeModal;
+
+    document.addEventListener('click', (e) => {
+        const open = e.target.closest('[data-modal-open]');
+        if (open) {
+            openModal(open.getAttribute('data-modal-open'));
+            return;
+        }
+
+        const close = e.target.closest('[data-modal-close]');
+        if (close) {
+            closeModal(close.getAttribute('data-modal-close'));
+            return;
+        }
+
+        const overlay = e.target.closest('[data-modal-overlay]');
+        if (overlay) {
+            closeModal(overlay.getAttribute('data-modal-overlay'));
+        }
+    });
+
+    window.addEventListener('open-modal', (e) => {
+        if (e?.detail?.name) openModal(e.detail.name);
+    });
+    window.addEventListener('close-modal', (e) => {
+        if (e?.detail?.name) closeModal(e.detail.name);
+    });
+}
+
+initModal();
+
 const inertiaRoot = document.getElementById('app');
 
 if (inertiaRoot) {

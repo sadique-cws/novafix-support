@@ -13,6 +13,7 @@ class BrandManager extends Component
 
     public $name, $device_id, $editingId;
     public $devices;
+    public $modalName = 'brand-form';
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -35,6 +36,13 @@ class BrandManager extends Component
 
         session()->flash('message', 'Brand created successfully.');
         $this->resetInput();
+        $this->dispatch('close-modal', name: $this->modalName);
+    }
+
+    public function startCreate()
+    {
+        $this->resetInput();
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function editBrand($id)
@@ -43,6 +51,7 @@ class BrandManager extends Component
         $this->editingId = $brand->id;
         $this->name = $brand->name;
         $this->device_id = $brand->device_id;
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function updateBrand()
@@ -57,12 +66,19 @@ class BrandManager extends Component
 
         session()->flash('message', 'Brand updated successfully.');
         $this->resetInput();
+        $this->dispatch('close-modal', name: $this->modalName);
     }
 
     public function deleteBrand($id)
     {
         Brand::destroy($id);
         session()->flash('message', 'Brand deleted successfully.');
+    }
+
+    public function cancel()
+    {
+        $this->resetInput();
+        $this->dispatch('close-modal', name: $this->modalName);
     }
 
     public function resetInput()

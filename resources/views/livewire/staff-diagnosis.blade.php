@@ -1,83 +1,88 @@
-<div class="mx-auto bg-slate-50 rounded-lg">
-    <div class="flex justify-between items-center p-3 bg-slate-100 rounded-t-lg">
-        <h2 class="text-lg font-bold text-gray-700">Support & Diagnosis</h2>
+<div class="mx-auto">
+    <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between px-5 py-4 bg-gray-50 rounded-t-2xl border-b border-gray-200">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-900">Support & Diagnosis</h2>
+                <p class="text-sm text-gray-600">Select device details and answer questions to reach the fault area.</p>
+            </div>
 
-        {{-- Reset Button --}}
-        <x-danger-button wire:click="resetSelection"
-            class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded">
-            Reset
-        </x-danger-button>
-    </div>
-
-    <div class="grid sm:grid-cols-2 md:grid-cols-4 p-3 gap-3">
-        {{-- Device Selection --}}
-        <div class="bg-gray-100 p-3 rounded-lg border border-gray-200">
-            <label class="block font-medium text-gray-700">Select Device:</label>
-            <select wire:model.change="selectedDevice"
-                class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400  {{$selectedDevice ? " bg-slate-300 cursor-not-allowed" : ''}}" {{$selectedDevice ? "disabled" : ""}}>
-                <option value="">Choose Device</option>
-                @foreach($devices as $device)
-                    <option value="{{ $device->id }}">{{ $device->name }}</option>
-                @endforeach
-            </select>
+            <button type="button" wire:click="resetSelection"
+                class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+                Reset
+            </button>
         </div>
 
-        {{-- Brand Selection --}}
-        @if($brands)
-        <div class="bg-gray-100 p-3 rounded-lg border border-gray-200">
-            <label class="block font-medium text-gray-700">Select Brand:</label>
-            <select wire:model.change="selectedBrand"
-                class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400  {{$selectedBrand ? " bg-slate-300 cursor-not-allowed" : ''}}" {{$selectedBrand ? "disabled" : ""}}>
-                <option value="">Choose Brand</option>
-                @foreach($brands as $brand)
-                    <option value="{{ $brand->id }}">{{ $brand->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        @endif
+        <div class="p-5 grid gap-4 md:grid-cols-4">
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label class="block text-sm font-semibold text-gray-800">Select Device</label>
+                <select wire:model.change="selectedDevice"
+                    class="mt-2 w-full rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-blue-500 {{$selectedDevice ? " bg-slate-200 cursor-not-allowed" : ''}}" {{$selectedDevice ? "disabled" : ""}}>
+                    <option value="">Choose Device</option>
+                    @foreach($devices as $device)
+                        <option value="{{ $device->id }}">{{ $device->name }}</option>
+                    @endforeach
+                </select>
+            </div>
 
-        {{-- Model Selection --}}
-        @if($models)
-        <div class="bg-gray-100 p-3 rounded-lg border border-gray-200">
-            <label class="block font-medium text-gray-700">Select Model:</label>
-            <select wire:model.change="selectedModel"
-                class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400 {{$selectedModel ? " bg-slate-300 cursor-not-allowed" : ''}}" {{$selectedModel ? "disabled" : ""}}>
-                <option value="">Choose Model</option>
-                @foreach($models as $model)
-                    <option value="{{ $model->id }}">{{ $model->name }}</option>
-                @endforeach
-            </select>
-        </div>
-        @endif
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label class="block text-sm font-semibold text-gray-800">Select Brand</label>
+                <select wire:model.change="selectedBrand"
+                    class="mt-2 w-full rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-blue-500 {{$selectedBrand ? " bg-slate-200 cursor-not-allowed" : ''}}" {{$selectedBrand ? "disabled" : ""}}>
+                    <option value="">Choose Brand</option>
+                    @foreach($brands as $brand)
+                        <option value="{{ $brand->id }}">{{ $brand->name }}</option>
+                    @endforeach
+                </select>
+            </div>
 
-        {{-- Problem Selection --}}
-        @if($problems)
-        <div class="bg-gray-100 p-3 rounded-lg border border-gray-200">
-            <label class="block font-medium text-gray-700">Select Problem:</label>
-            <select wire:model.change="selectedProblem"
-                class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400 {{$selectedProblem ? " bg-slate-300 cursor-not-allowed" : ''}}" {{$selectedProblem ? "disabled" : ""}}>
-                <option value="">Choose Problem</option>
-                @foreach($problems as $problem)
-                    <option value="{{ $problem->id }}">{{ $problem->name }}</option>
-                @endforeach
-            </select>
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label class="block text-sm font-semibold text-gray-800">Select Model</label>
+                <select wire:model.change="selectedModel"
+                    class="mt-2 w-full rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-blue-500 {{$selectedModel ? " bg-slate-200 cursor-not-allowed" : ''}}" {{$selectedModel ? "disabled" : ""}}>
+                    <option value="">Choose Model</option>
+                    @foreach($models as $model)
+                        <option value="{{ $model->id }}">{{ $model->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label class="block text-sm font-semibold text-gray-800">Select Problem</label>
+                <select wire:model.change="selectedProblem"
+                    class="mt-2 w-full rounded-lg border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-blue-500 {{$selectedProblem ? " bg-slate-200 cursor-not-allowed" : ''}}" {{$selectedProblem ? "disabled" : ""}}>
+                    <option value="">Choose Problem</option>
+                    @foreach($problems as $problem)
+                        <option value="{{ $problem->id }}">{{ $problem->name }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
-        @endif
     </div>
 
     {{-- Question Box --}}
     @if($currentQuestion)
-    <div class="mt-6 bg-white flex flex-col items-center  p-4 rounded-lg shadow">
-        <p class="text-3xl mb-4 font-semibold text-gray-700">{{ $currentQuestion->question_text }}</p>
-        <div class="mt-3 space-x-4">
-            <x-primary-button class="text-3xl" wire:click="answerQuestion('yes')">Yes</x-primary-button>
-            <x-danger-button class="text-3xl" wire:click="answerQuestion('no')">No</x-danger-button>
+        <div class="mt-10 rounded-2xl border border-gray-200 bg-white shadow-sm p-8">
+            <div class="text-center">
+                <div class="text-4xl font-bold text-gray-800 tracking-tight">
+                    {{ $currentQuestion->question_text }}
+                </div>
+
+                <div class="mt-8 flex items-center justify-center gap-4">
+                    <button type="button" wire:click="answerQuestion('yes')"
+                        class="rounded-lg bg-green-700 px-8 py-3 text-lg font-semibold text-white hover:bg-green-800">
+                        YES
+                    </button>
+                    <button type="button" wire:click="answerQuestion('no')"
+                        class="rounded-lg bg-red-600 px-8 py-3 text-lg font-semibold text-white hover:bg-red-700">
+                        NO
+                    </button>
+                </div>
+            </div>
         </div>
-    </div>
     @elseif($selectedProblem && $isComplete)
-    <div class="mt-6 bg-white p-6 rounded-lg shadow border border-green-200">
-        <h3 class="text-2xl font-semibold text-gray-800">Diagnosis complete</h3>
-        <p class="text-gray-600 mt-2">You’ve reached the end of this flow. Use Reset to start again or pick another problem.</p>
-    </div>
+        <div class="mt-10 rounded-2xl border border-green-200 bg-green-50 p-6">
+            <h3 class="text-xl font-semibold text-green-900">Diagnosis complete</h3>
+            <p class="mt-1 text-sm text-green-800">Flow ended. Use Reset to start again or choose another problem.</p>
+        </div>
     @endif
 </div>

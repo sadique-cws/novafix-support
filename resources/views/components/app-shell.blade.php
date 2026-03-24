@@ -81,6 +81,9 @@
                     <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
                         <div class="text-xs font-semibold text-gray-600">Signed in</div>
                         <div class="mt-1 text-sm font-semibold text-gray-900 truncate">{{ auth()->user()->name }}</div>
+                        <div class="mt-0.5 inline-flex w-fit rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                            {{ strtoupper(auth()->user()->role ?? 'user') }}
+                        </div>
                         <div class="text-xs text-gray-600 truncate">{{ auth()->user()->email }}</div>
                     </div>
                 @endauth
@@ -107,4 +110,3 @@
         </main>
     </div>
 </div>
-

@@ -13,6 +13,7 @@ class DeviceManager extends Component
 
     public $name;
     public $editingId = null;
+    public $modalName = 'device-form';
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -25,6 +26,13 @@ class DeviceManager extends Component
 
         $this->resetInput();
         session()->flash('message', 'Device created successfully.');
+        $this->dispatch('close-modal', name: $this->modalName);
+    }
+
+    public function startCreate()
+    {
+        $this->resetInput();
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function editDevice($id)
@@ -32,6 +40,7 @@ class DeviceManager extends Component
         $device = Device::findOrFail($id);
         $this->editingId = $device->id;
         $this->name = $device->name;
+        $this->dispatch('open-modal', name: $this->modalName);
     }
 
     public function updateDevice()
@@ -44,6 +53,7 @@ class DeviceManager extends Component
 
             $this->resetInput();
             session()->flash('message', 'Device updated successfully.');
+            $this->dispatch('close-modal', name: $this->modalName);
         }
     }
 
@@ -51,6 +61,12 @@ class DeviceManager extends Component
     {
         Device::findOrFail($id)->delete();
         session()->flash('message', 'Device deleted successfully.');
+    }
+
+    public function cancel()
+    {
+        $this->resetInput();
+        $this->dispatch('close-modal', name: $this->modalName);
     }
 
     public function resetInput()

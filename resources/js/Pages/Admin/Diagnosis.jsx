@@ -174,6 +174,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
     const [sourceProblemId, setSourceProblemId] = useState('');
     const [sourceQuestions, setSourceQuestions] = useState([]);
     const [targetQuestions, setTargetQuestions] = useState([]);
+    const [cloneSearch, setCloneSearch] = useState('');
 
     const filteredBrands = useMemo(
         () => brands.filter((b) => String(b.device_id) === String(selectedDeviceId)),
@@ -450,6 +451,24 @@ export default function Diagnosis({ devices, brands, models, problems }) {
             },
         });
     };
+
+    const filteredSourceQuestions = useMemo(() => {
+        const q = String(cloneSearch || '').trim().toLowerCase();
+        if (!q) return sourceQuestions;
+        return sourceQuestions.filter((x) => {
+            const hay = `${x.id} ${x.text ?? ''}`.toLowerCase();
+            return hay.includes(q);
+        });
+    }, [cloneSearch, sourceQuestions]);
+
+    const filteredTargetQuestions = useMemo(() => {
+        const q = String(cloneSearch || '').trim().toLowerCase();
+        if (!q) return targetQuestions;
+        return targetQuestions.filter((x) => {
+            const hay = `${x.id} ${x.text ?? ''}`.toLowerCase();
+            return hay.includes(q);
+        });
+    }, [cloneSearch, targetQuestions]);
 
     return (
         <div className="w-full">
@@ -764,6 +783,16 @@ export default function Diagnosis({ devices, brands, models, problems }) {
 
             <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="text-sm font-semibold text-gray-800">Clone / Reuse a Sub-Flow</div>
+                <div className="mt-2 text-xs text-gray-600">Search by question id or text to quickly find attach points.</div>
+                <div className="mt-3">
+                    <input
+                        className="w-full rounded-lg border border-gray-300 p-2 text-sm"
+                        placeholder="Search in source/target questions (id or text)…"
+                        value={cloneSearch}
+                        onChange={(e) => setCloneSearch(e.target.value)}
+                    />
+                </div>
+
                 <form className="mt-4 grid gap-4 md:grid-cols-3" onSubmit={submitClone}>
                     <div>
                         <label className="text-xs font-medium text-gray-700">Source Problem</label>
@@ -790,7 +819,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                             disabled={!sourceProblemId}
                         >
                             <option value="">Choose question</option>
-                            {sourceQuestions.map((q) => (
+                            {filteredSourceQuestions.map((q) => (
                                 <option key={q.id} value={q.id}>
                                     #{q.id} — {String(q.text).slice(0, 90)}
                                 </option>
@@ -822,7 +851,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                                 disabled={!selectedProblemId}
                             >
                                 <option value="">Choose target question</option>
-                                {targetQuestions.map((q) => (
+                                {filteredTargetQuestions.map((q) => (
                                     <option key={q.id} value={q.id}>
                                         #{q.id} — {String(q.text).slice(0, 90)}
                                     </option>
