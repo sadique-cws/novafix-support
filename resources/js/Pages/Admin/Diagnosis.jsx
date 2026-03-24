@@ -1,7 +1,39 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 
-function TreeNode({ nodeId, nodes, depth = 0, expanded, toggle, selectedId, onSelect }) {
+function escapeRegExp(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightText(text, term) {
+    const raw = String(text ?? '');
+    const q = String(term ?? '').trim();
+    if (!q) return raw;
+    const parts = raw.split(new RegExp(`(${escapeRegExp(q)})`, 'ig'));
+    if (parts.length === 1) return raw;
+    return parts.map((p, i) =>
+        p.toLowerCase() === q.toLowerCase() ? (
+            <mark key={i} className="rounded bg-yellow-100 px-1 text-gray-900">
+                {p}
+            </mark>
+        ) : (
+            <React.Fragment key={i}>{p}</React.Fragment>
+        )
+    );
+}
+
+function TreeNode({
+    nodeId,
+    nodes,
+    depth = 0,
+    expanded,
+    toggle,
+    selectedId,
+    onSelect,
+    visibleSet,
+    searchTerm,
+    compactMode,
+}) {
     const node = nodes?.[nodeId];
     if (!node) return null;
 
@@ -10,12 +42,12 @@ function TreeNode({ nodeId, nodes, depth = 0, expanded, toggle, selectedId, onSe
     const isSelected = String(selectedId) === String(nodeId);
 
     return (
-        <div className="mt-2">
+        <div className={compactMode ? 'mt-1.5' : 'mt-2'}>
             <div
-                className={`flex items-start gap-2 rounded-lg border bg-white p-3 shadow-sm cursor-pointer ${
+                className={`flex items-start gap-2 rounded-lg border bg-white cursor-pointer ${
                     isSelected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-gray-200 hover:border-gray-300'
-                }`}
-                style={{ marginLeft: depth * 16 }}
+                } ${compactMode ? 'px-2.5 py-2 shadow-none' : 'p-3 shadow-sm'}`}
+                style={{ marginLeft: depth * (compactMode ? 12 : 16) }}
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelect?.(nodeId)}
@@ -30,29 +62,55 @@ function TreeNode({ nodeId, nodes, depth = 0, expanded, toggle, selectedId, onSe
                             e.stopPropagation();
                             toggle(nodeId);
                         }}
-                        className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        className={`mt-0.5 inline-flex items-center justify-center rounded border border-gray-300 text-gray-700 hover:bg-gray-50 ${
+                            compactMode ? 'h-7 w-7' : 'h-6 w-6'
+                        }`}
                         aria-label="Toggle node"
                     >
                         {isExpanded ? '−' : '+'}
                     </button>
                 ) : (
-                    <span className="mt-1 inline-block h-6 w-6" />
+                    <span className={`mt-1 inline-block ${compactMode ? 'h-7 w-7' : 'h-6 w-6'}`} />
                 )}
                 <div className="min-w-0 flex-1">
-                    <div className="text-xs text-gray-500">#{node.id}</div>
-                    <div className="mt-0.5 text-sm font-semibold leading-snug text-gray-900 break-words">{node.text}</div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-md bg-green-50 px-2 py-1 text-green-700">YES → {node.yes ?? 'END'}</span>
-                        <span className="rounded-md bg-red-50 px-2 py-1 text-red-700">NO → {node.no ?? 'END'}</span>
-                    </div>
+                    {compactMode ? (
+                        <>
+                            <div className="flex items-baseline gap-2">
+                                <div className="text-[11px] font-semibold text-gray-500">#{node.id}</div>
+                                <div className="min-w-0 flex-1 text-sm font-semibold leading-snug text-gray-900 truncate">
+                                    {highlightText(node.text, searchTerm)}
+                                </div>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
+                                <span className="rounded bg-green-50 px-2 py-1 text-green-700">Y → {node.yes ?? 'END'}</span>
+                                <span className="rounded bg-red-50 px-2 py-1 text-red-700">N → {node.no ?? 'END'}</span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="text-xs text-gray-500">#{node.id}</div>
+                            <div className="mt-0.5 text-sm font-semibold leading-snug text-gray-900 break-words">
+                                {highlightText(node.text, searchTerm)}
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                <span className="rounded-md bg-green-50 px-2 py-1 text-green-700">
+                                    YES → {node.yes ?? 'END'}
+                                </span>
+                                <span className="rounded-md bg-red-50 px-2 py-1 text-red-700">NO → {node.no ?? 'END'}</span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
             {hasChildren && isExpanded ? (
-                <div className="mt-2">
-                    {node.yes ? (
+                <div className={compactMode ? 'mt-1.5' : 'mt-2'}>
+                    {node.yes && (!visibleSet || visibleSet.has(node.yes)) ? (
                         <div>
-                            <div className="text-xs font-semibold text-green-700" style={{ marginLeft: (depth + 1) * 16 }}>
+                            <div
+                                className="text-xs font-semibold text-green-700"
+                                style={{ marginLeft: (depth + 1) * (compactMode ? 12 : 16) }}
+                            >
                                 YES
                             </div>
                             <TreeNode
@@ -63,12 +121,18 @@ function TreeNode({ nodeId, nodes, depth = 0, expanded, toggle, selectedId, onSe
                                 toggle={toggle}
                                 selectedId={selectedId}
                                 onSelect={onSelect}
+                                visibleSet={visibleSet}
+                                searchTerm={searchTerm}
+                                compactMode={compactMode}
                             />
                         </div>
                     ) : null}
-                    {node.no ? (
+                    {node.no && (!visibleSet || visibleSet.has(node.no)) ? (
                         <div className="mt-2">
-                            <div className="text-xs font-semibold text-red-700" style={{ marginLeft: (depth + 1) * 16 }}>
+                            <div
+                                className="text-xs font-semibold text-red-700"
+                                style={{ marginLeft: (depth + 1) * (compactMode ? 12 : 16) }}
+                            >
                                 NO
                             </div>
                             <TreeNode
@@ -79,6 +143,9 @@ function TreeNode({ nodeId, nodes, depth = 0, expanded, toggle, selectedId, onSe
                                 toggle={toggle}
                                 selectedId={selectedId}
                                 onSelect={onSelect}
+                                visibleSet={visibleSet}
+                                searchTerm={searchTerm}
+                                compactMode={compactMode}
                             />
                         </div>
                     ) : null}
@@ -100,6 +167,9 @@ export default function Diagnosis({ devices, brands, models, problems }) {
     const [treeLoading, setTreeLoading] = useState(false);
     const [expanded, setExpanded] = useState({});
     const [selectedNodeId, setSelectedNodeId] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [focusMode, setFocusMode] = useState(false);
+    const [compactMode, setCompactMode] = useState(true);
 
     const [sourceProblemId, setSourceProblemId] = useState('');
     const [sourceQuestions, setSourceQuestions] = useState([]);
@@ -149,6 +219,17 @@ export default function Diagnosis({ devices, brands, models, problems }) {
 
     const toggle = (id) => setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
 
+    const expandAll = () => {
+        if (!tree?.nodes) return;
+        const next = {};
+        Object.values(tree.nodes).forEach((n) => {
+            if (n?.yes || n?.no) next[n.id] = true;
+        });
+        setExpanded(next);
+    };
+
+    const collapseAll = () => setExpanded({});
+
     const refreshTarget = () => {
         if (!selectedProblemId) return;
         setTreeLoading(true);
@@ -163,6 +244,73 @@ export default function Diagnosis({ devices, brands, models, problems }) {
             .finally(() => setTreeLoading(false));
     };
 
+    const parentMap = useMemo(() => {
+        const map = {};
+        if (!tree?.nodes) return map;
+        Object.values(tree.nodes).forEach((n) => {
+            if (!n) return;
+            if (n.yes) {
+                map[n.yes] = map[n.yes] || [];
+                map[n.yes].push(n.id);
+            }
+            if (n.no) {
+                map[n.no] = map[n.no] || [];
+                map[n.no].push(n.id);
+            }
+        });
+        return map;
+    }, [tree]);
+
+    const selectedNode = tree?.nodes?.[selectedNodeId] ?? null;
+
+    const visibleSet = useMemo(() => {
+        if (!focusMode || !tree?.nodes || !selectedNodeId) return null;
+        const visible = new Set();
+        const queue = [Number(selectedNodeId)];
+
+        // Descendants from selected
+        while (queue.length) {
+            const id = queue.shift();
+            if (!id || visible.has(id)) continue;
+            visible.add(id);
+            const n = tree.nodes[id];
+            if (!n) continue;
+            if (n.yes) queue.push(n.yes);
+            if (n.no) queue.push(n.no);
+        }
+
+        // Ancestors of selected (handle multiple parents)
+        const anc = [Number(selectedNodeId)];
+        while (anc.length) {
+            const cur = anc.shift();
+            const parents = parentMap[cur] || [];
+            for (const p of parents) {
+                if (!visible.has(p)) visible.add(p);
+                anc.push(p);
+            }
+        }
+
+        return visible;
+    }, [focusMode, tree, selectedNodeId, parentMap]);
+
+    const focusRoots = useMemo(() => {
+        if (!focusMode || !visibleSet || !tree?.roots) return tree?.roots || [];
+        return tree.roots.filter((r) => visibleSet.has(r));
+    }, [focusMode, visibleSet, tree]);
+
+    const searchResults = useMemo(() => {
+        const q = String(searchTerm ?? '').trim().toLowerCase();
+        if (!q || !tree?.nodes) return [];
+        const results = [];
+        for (const n of Object.values(tree.nodes)) {
+            if (!n) continue;
+            const hay = `${n.id} ${n.text ?? ''}`.toLowerCase();
+            if (hay.includes(q)) results.push(n);
+            if (results.length >= 25) break;
+        }
+        return results;
+    }, [searchTerm, tree]);
+
     useEffect(() => {
         setSelectedBrandId('');
         setSelectedModelId('');
@@ -171,6 +319,9 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         setTargetQuestions([]);
         setExpanded({});
         setSelectedNodeId('');
+        setSearchTerm('');
+        setFocusMode(false);
+        setCompactMode(true);
     }, [selectedDeviceId]);
 
     useEffect(() => {
@@ -180,6 +331,9 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         setTargetQuestions([]);
         setExpanded({});
         setSelectedNodeId('');
+        setSearchTerm('');
+        setFocusMode(false);
+        setCompactMode(true);
     }, [selectedBrandId]);
 
     useEffect(() => {
@@ -188,6 +342,9 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         setTargetQuestions([]);
         setExpanded({});
         setSelectedNodeId('');
+        setSearchTerm('');
+        setFocusMode(false);
+        setCompactMode(true);
     }, [selectedModelId]);
 
     useEffect(() => {
@@ -244,8 +401,6 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         });
     };
 
-    const selectedNode = tree?.nodes?.[selectedNodeId] ?? null;
-
     useEffect(() => {
         if (!selectedNode) return;
         editForm.setData('question_text', selectedNode.text ?? '');
@@ -297,7 +452,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
     };
 
     return (
-        <div>
+        <div className="w-full">
             <Head title="Admin Diagnosis (React Tree)" />
 
             <div className="flex items-start justify-between gap-4">
@@ -316,84 +471,163 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                 <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{flash.error}</div>
             ) : null}
 
-            <div className="mt-6 grid gap-4 md:grid-cols-4">
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-gray-800">Target Flow</div>
-                    <div className="mt-3 space-y-3">
-                        <div>
-                            <label className="text-xs font-medium text-gray-700">Device</label>
-                            <select
-                                className="mt-1 w-full rounded-lg border border-gray-300 p-2"
-                                value={selectedDeviceId}
-                                onChange={(e) => setSelectedDeviceId(e.target.value)}
-                            >
-                                <option value="">Choose device</option>
-                                {devices.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                        {d.name}
-                                    </option>
-                                ))}
-                            </select>
+                    {selectedProblemId ? (
+                        <div className="text-xs text-gray-500">
+                            {tree?.count ? `${tree.count} questions` : null}
                         </div>
-
-                        <div>
-                            <label className="text-xs font-medium text-gray-700">Brand</label>
-                            <select
-                                className="mt-1 w-full rounded-lg border border-gray-300 p-2"
-                                value={selectedBrandId}
-                                onChange={(e) => setSelectedBrandId(e.target.value)}
-                                disabled={!selectedDeviceId}
-                            >
-                                <option value="">Choose brand</option>
-                                {filteredBrands.map((b) => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-medium text-gray-700">Model</label>
-                            <select
-                                className="mt-1 w-full rounded-lg border border-gray-300 p-2"
-                                value={selectedModelId}
-                                onChange={(e) => setSelectedModelId(e.target.value)}
-                                disabled={!selectedBrandId}
-                            >
-                                <option value="">Choose model</option>
-                                {filteredModels.map((m) => (
-                                    <option key={m.id} value={m.id}>
-                                        {m.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-xs font-medium text-gray-700">Problem</label>
-                            <select
-                                className="mt-1 w-full rounded-lg border border-gray-300 p-2"
-                                value={selectedProblemId}
-                                onChange={(e) => setSelectedProblemId(e.target.value)}
-                                disabled={!selectedModelId}
-                            >
-                                <option value="">Choose problem</option>
-                                {filteredProblems.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        {p.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
+                    ) : null}
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:col-span-3">
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                        <label className="text-xs font-medium text-gray-700">Device</label>
+                        <select
+                            className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+                            value={selectedDeviceId}
+                            onChange={(e) => setSelectedDeviceId(e.target.value)}
+                        >
+                            <option value="">Choose device</option>
+                            {devices.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                    {d.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-medium text-gray-700">Brand</label>
+                        <select
+                            className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+                            value={selectedBrandId}
+                            onChange={(e) => setSelectedBrandId(e.target.value)}
+                            disabled={!selectedDeviceId}
+                        >
+                            <option value="">Choose brand</option>
+                            {filteredBrands.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                    {b.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-medium text-gray-700">Model</label>
+                        <select
+                            className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+                            value={selectedModelId}
+                            onChange={(e) => setSelectedModelId(e.target.value)}
+                            disabled={!selectedBrandId}
+                        >
+                            <option value="">Choose model</option>
+                            {filteredModels.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                    {m.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-medium text-gray-700">Problem</label>
+                        <select
+                            className="mt-1 w-full rounded-lg border border-gray-300 p-2"
+                            value={selectedProblemId}
+                            onChange={(e) => setSelectedProblemId(e.target.value)}
+                            disabled={!selectedModelId}
+                        >
+                            <option value="">Choose problem</option>
+                            {filteredProblems.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                    {p.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div className="text-sm font-semibold text-gray-800">Tree Viewer</div>
-                        {tree?.count ? <div className="text-xs text-gray-500">{tree.count} questions</div> : null}
+                        {selectedProblemId && focusMode ? (
+                            <div className="text-xs text-gray-500">Focus view</div>
+                        ) : null}
                     </div>
+
+                    {selectedProblemId ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={expandAll}
+                                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    Expand all
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={collapseAll}
+                                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                >
+                                    Collapse all
+                                </button>
+                                <label className="flex items-center gap-2 text-xs text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300"
+                                        checked={compactMode}
+                                        onChange={(e) => setCompactMode(e.target.checked)}
+                                    />
+                                    Compact
+                                </label>
+                                <label className="flex items-center gap-2 text-xs text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300"
+                                        checked={focusMode}
+                                        onChange={(e) => setFocusMode(e.target.checked)}
+                                        disabled={!selectedNodeId}
+                                    />
+                                    Focus selected
+                                </label>
+                            </div>
+
+                            <div className="relative w-full sm:w-[360px]">
+                                <input
+                                    className="w-full rounded-lg border border-gray-300 p-2 text-sm"
+                                    placeholder="Search by id or text…"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                {searchResults.length ? (
+                                    <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+                                        {searchResults.map((n) => (
+                                            <button
+                                                key={n.id}
+                                                type="button"
+                                                className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                                                onClick={() => {
+                                                    setSelectedNodeId(String(n.id));
+                                                    setSearchTerm('');
+                                                    setFocusMode(true);
+                                                }}
+                                            >
+                                                <div className="mt-0.5 text-xs font-semibold text-gray-700">#{n.id}</div>
+                                                <div className="min-w-0 flex-1 text-xs text-gray-700">
+                                                    <div className="truncate">{highlightText(n.text, String(searchTerm ?? '').trim())}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : null}
 
                     {!selectedProblemId ? (
                         <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-600">
@@ -410,7 +644,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                                 </div>
                             ) : null}
                             <div className="max-h-[70vh] overflow-auto pr-2">
-                                {tree.roots.map((rootId) => (
+                                {focusRoots.map((rootId) => (
                                     <TreeNode
                                         key={rootId}
                                         nodeId={rootId}
@@ -419,6 +653,9 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                                         toggle={toggle}
                                         selectedId={selectedNodeId}
                                         onSelect={(id) => setSelectedNodeId(String(id))}
+                                        visibleSet={visibleSet}
+                                        searchTerm={searchTerm}
+                                        compactMode={compactMode}
                                     />
                                 ))}
                             </div>
@@ -523,7 +760,6 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                             </form>
                         </div>
                     )}
-                </div>
             </div>
 
             <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">

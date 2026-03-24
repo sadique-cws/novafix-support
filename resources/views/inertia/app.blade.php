@@ -12,7 +12,7 @@
     </head>
     <body class="min-h-screen bg-gray-50 text-gray-900">
         <header class="bg-white border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <a href="/" class="font-semibold text-gray-800">NovaFix</a>
                     @auth
@@ -45,9 +45,8 @@
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main class="w-full px-4 sm:px-6 lg:px-8 py-6">
             @inertia
         </main>
     </body>
 </html>
-

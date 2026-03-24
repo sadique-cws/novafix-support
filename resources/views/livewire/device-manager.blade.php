@@ -1,68 +1,84 @@
-<div class=" mx-auto p-6 bg-white rounded-xl">
-    <h2 class="text-3xl font-semibold mb-4 text-gray-800">Manage Devices</h2>
+<div class="mx-auto bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-900">Manage Devices</h2>
+        <p class="mt-1 text-sm text-gray-600">Create, edit, and remove device types.</p>
+    </div>
 
     @if (session()->has('message'))
-        <div class="mb-4 p-3 bg-green-100 text-green-700 border border-green-400 rounded-lg">
+        <div class="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800">
             {{ session('message') }}
         </div>
     @endif
 
-    <div class="flex flex-col md:flex-row-reverse gap-4">
+    <div class="mt-6 grid gap-4 lg:grid-cols-3">
         {{-- Create or Edit Form --}}
-        <form wire:submit.prevent="{{ $editingId ? 'updateDevice' : 'createDevice' }}" class="mb-6">
-            <div class="flex items-center gap-3">
-                <input type="text" wire:model="name"
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter device name">
-                <button type="submit"
-                    class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">
-                    {{ $editingId ? 'Update' : 'Create' }}
-                </button>
-                @if ($editingId)
-                    <button type="button" wire:click="resetInput"
-                        class="px-5 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition duration-300">
-                        Cancel
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <h3 class="text-sm font-semibold text-gray-800">{{ $editingId ? 'Edit Device' : 'Create Device' }}</h3>
+            <form wire:submit.prevent="{{ $editingId ? 'updateDevice' : 'createDevice' }}" class="mt-4 space-y-3">
+                <div>
+                    <label class="text-xs font-medium text-gray-700">Device name</label>
+                    <input type="text" wire:model="name"
+                        class="mt-1 w-full rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g. Laptop, Desktop, Mobile">
+                    @error('name')
+                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="submit"
+                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                        {{ $editingId ? 'Update' : 'Create' }}
                     </button>
-                @endif
-            </div>
-            @error('name')
-                <p class="text-red-500 text-sm mt-2">{{ $message }}</p>
-            @enderror
-        </form>
+                    @if ($editingId)
+                        <button type="button" wire:click="resetInput"
+                            class="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+                            Cancel
+                        </button>
+                    @endif
+                </div>
+            </form>
+        </div>
 
         {{-- Device List --}}
-        <div class="flex-1">
-            <div class="overflow-hidden rounded-lg border border-gray-200">
-                <table class="w-full border-collapse">
-                    <thead>
-                        <tr class="bg-gray-100 text-gray-700">
-                            <th class="px-6 py-3 text-left font-semibold">ID</th>
-                            <th class="px-6 py-3 text-left font-semibold">Name</th>
-                            <th class="px-6 py-3 text-center font-semibold">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($devices as $device)
-                            <tr class="border-b hover:bg-gray-50 transition">
-                                <td class="px-6 py-3">{{ $device->id }}</td>
-                                <td class="px-6 py-3 font-medium text-gray-800">{{ $device->name }}</td>
-                                <td class="px-6 py-3 text-center space-x-2">
-                                    <button wire:click="editDevice({{ $device->id }})"
-                                        class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-300">Edit</button>
-                                    @if ($device->brands->isEmpty())
-                                        {{-- Check if device has no brands --}}
-                                        <button wire:click="deleteDevice({{ $device->id }})"
-                                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-300">Delete</button>
-                                    @endif
-                                </td>
+        <div class="lg:col-span-2">
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                                <th class="px-4 py-3">ID</th>
+                                <th class="px-4 py-3">Name</th>
+                                <th class="px-4 py-3 text-right">Actions</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-sm text-gray-900">
+                            @foreach ($devices as $device)
+                                <tr class="hover:bg-gray-50 transition">
+                                    <td class="px-4 py-3">{{ $device->id }}</td>
+                                    <td class="px-4 py-3 font-medium text-gray-800">{{ $device->name }}</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex justify-end gap-2">
+                                            <button wire:click="editDevice({{ $device->id }})"
+                                                class="rounded-md bg-yellow-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-yellow-600">
+                                                Edit
+                                            </button>
+                                            @if ($device->brands->isEmpty())
+                                                <button wire:click="deleteDevice({{ $device->id }})"
+                                                    class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
+                                                    Delete
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {{-- Pagination --}}
-            <div class="mt-6 flex justify-center">
+            <div class="mt-4 flex justify-center">
                 {{ $devices->links() }}
             </div>
         </div>
