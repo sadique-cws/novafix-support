@@ -10,6 +10,7 @@ use App\Models\Problem;
 use App\Models\Question;
 use App\Models\UserAnswer;
 use Auth;
+use Illuminate\Support\Facades\DB;
 
 class SupportDiagnosis extends Component
 {
@@ -31,6 +32,11 @@ class SupportDiagnosis extends Component
 
     public $editingQuestionId = null;
     public $editingQuestionText = '';
+
+    public $sourceProblemId = null;
+    public $sourceQuestionId = null;
+    public $targetAttachToQuestionId = null;
+    public $targetAttachBranch = 'yes'; // yes|no|root
 
     public function mount()
     {
@@ -213,11 +219,169 @@ class SupportDiagnosis extends Component
         }
     }
 
+    public function cloneFlow()
+    {
+        $this->validate([
+            'sourceProblemId' => 'required|exists:problems,id',
+            'sourceQuestionId' => 'required|exists:questions,id',
+            'selectedProblem' => 'required|exists:problems,id',
+            'targetAttachBranch' => 'required|in:yes,no,root',
+        ]);
+
+        $sourceQuestion = Question::query()
+            ->whereKey($this->sourceQuestionId)
+            ->where('problem_id', $this->sourceProblemId)
+            ->first();
+
+        if (!$sourceQuestion) {
+            session()->flash('error', 'Source question not found for the selected source problem.');
+            return;
+        }
+
+        $targetProblemId = (int) $this->selectedProblem;
+
+        try {
+            DB::transaction(function () use ($targetProblemId) {
+                $idMap = [];
+                $visiting = [];
+                $clonedRootId = $this->cloneQuestionSubtree((int) $this->sourceQuestionId, $targetProblemId, $idMap, $visiting);
+
+                if ($this->targetAttachBranch === 'root') {
+                    $hasExisting = Question::query()->where('problem_id', $targetProblemId)->exists();
+                    $newCount = count($idMap);
+
+                    // If the only questions in the target are the newly created ones, allow root.
+                    if ($hasExisting && $newCount > 0) {
+                        // If there were existing questions, then exists() would be true even before cloning,
+                        // but we can't easily distinguish here without extra queries. Keep it strict:
+                        // only allow 'root' when target had no questions.
+                        $existingBefore = Question::query()
+                            ->where('problem_id', $targetProblemId)
+                            ->whereNotIn('id', array_values($idMap))
+                            ->exists();
+
+                        if ($existingBefore) {
+                            throw new \RuntimeException('Target problem already has questions. Attach to a Yes/No branch instead of Root.');
+                        }
+                    }
+
+                    $this->currentQuestion = Question::find($clonedRootId);
+                    $this->newQuestionAnswer = null;
+                    $this->newQuestionText = '';
+                    $this->loadQuestionTree();
+                    return;
+                }
+
+                if (!$this->targetAttachToQuestionId && $this->currentQuestion) {
+                    $this->targetAttachToQuestionId = $this->currentQuestion->id;
+                }
+
+                $this->validate([
+                    'targetAttachToQuestionId' => 'required|exists:questions,id',
+                ]);
+
+                $targetAttachQuestion = Question::query()
+                    ->whereKey($this->targetAttachToQuestionId)
+                    ->where('problem_id', $targetProblemId)
+                    ->first();
+
+                if (!$targetAttachQuestion) {
+                    throw new \RuntimeException('Target attach question not found for the selected target problem.');
+                }
+
+                if ($this->targetAttachBranch === 'yes') {
+                    if ($targetAttachQuestion->yes_question_id) {
+                        throw new \RuntimeException('Target question already has a YES branch. Clear it before attaching a cloned flow.');
+                    }
+                    $targetAttachQuestion->yes_question_id = $clonedRootId;
+                } else {
+                    if ($targetAttachQuestion->no_question_id) {
+                        throw new \RuntimeException('Target question already has a NO branch. Clear it before attaching a cloned flow.');
+                    }
+                    $targetAttachQuestion->no_question_id = $clonedRootId;
+                }
+
+                $targetAttachQuestion->save();
+
+                $this->currentQuestion = $targetAttachQuestion->fresh();
+                $this->newQuestionAnswer = null;
+                $this->newQuestionText = '';
+                $this->loadQuestionTree();
+            });
+        } catch (\Throwable $e) {
+            session()->flash('error', $e->getMessage());
+            return;
+        }
+
+        session()->flash('message', 'Flow cloned and attached successfully.');
+    }
+
+    private function cloneQuestionSubtree(int $sourceQuestionId, int $targetProblemId, array &$idMap, array &$visiting): int
+    {
+        if (isset($idMap[$sourceQuestionId])) {
+            return $idMap[$sourceQuestionId];
+        }
+
+        if (isset($visiting[$sourceQuestionId])) {
+            throw new \RuntimeException('Cycle detected in the source flow. Cannot clone.');
+        }
+
+        $visiting[$sourceQuestionId] = true;
+
+        $source = Question::find($sourceQuestionId);
+        if (!$source) {
+            throw new \RuntimeException("Source question {$sourceQuestionId} not found.");
+        }
+
+        $copy = Question::create([
+            'problem_id' => $targetProblemId,
+            'question_text' => $source->question_text,
+            'yes_question_id' => null,
+            'no_question_id' => null,
+        ]);
+
+        $idMap[$sourceQuestionId] = $copy->id;
+
+        if ($source->yes_question_id) {
+            $copy->yes_question_id = $this->cloneQuestionSubtree((int) $source->yes_question_id, $targetProblemId, $idMap, $visiting);
+        }
+        if ($source->no_question_id) {
+            $copy->no_question_id = $this->cloneQuestionSubtree((int) $source->no_question_id, $targetProblemId, $idMap, $visiting);
+        }
+
+        $copy->save();
+
+        unset($visiting[$sourceQuestionId]);
+
+        return $copy->id;
+    }
+
     public function render()
     {
+        $problems = Problem::query()->orderBy('name')->get();
+        $sourceQuestions = [];
+        $targetQuestions = [];
+
+        if ($this->sourceProblemId) {
+            $sourceQuestions = Question::query()
+                ->where('problem_id', $this->sourceProblemId)
+                ->orderBy('id')
+                ->get();
+        }
+
+        if ($this->selectedProblem) {
+            $targetQuestions = Question::query()
+                ->where('problem_id', $this->selectedProblem)
+                ->orderBy('id')
+                ->get();
+        }
+
         return view('livewire.support-diagnosis', [
             'showCreateFirst' => !$this->currentQuestion,
             'showAddQuestion' => $this->currentQuestion && (!$this->currentQuestion->yes_question_id || !$this->currentQuestion->no_question_id),
+            'problemsList' => $problems,
+            'sourceQuestions' => $sourceQuestions,
+            'targetQuestions' => $targetQuestions,
         ]);
     }
 }

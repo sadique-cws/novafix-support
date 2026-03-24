@@ -74,5 +74,10 @@
             <x-danger-button class="text-3xl" wire:click="answerQuestion('no')">No</x-danger-button>
         </div>
     </div>
+    @elseif($selectedProblem && $isComplete)
+    <div class="mt-6 bg-white p-6 rounded-lg shadow border border-green-200">
+        <h3 class="text-2xl font-semibold text-gray-800">Diagnosis complete</h3>
+        <p class="text-gray-600 mt-2">You’ve reached the end of this flow. Use Reset to start again or pick another problem.</p>
+    </div>
     @endif
 </div>

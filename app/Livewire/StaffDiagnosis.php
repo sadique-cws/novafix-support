@@ -22,6 +22,7 @@ class StaffDiagnosis extends Component
     public $problems = [];
     public $questions = [];
     public $questionTree = [];
+    public $isComplete = false;
 
     public $selectedDevice;
     public $selectedBrand;
@@ -58,6 +59,7 @@ class StaffDiagnosis extends Component
     public function updatedSelectedProblem()
     {
         $this->currentQuestion = Question::where('problem_id', $this->selectedProblem)->first();
+        $this->isComplete = false;
         $this->loadQuestionTree();
     }
 
@@ -103,6 +105,7 @@ class StaffDiagnosis extends Component
         } else {
             // No next question, stop here
             $this->currentQuestion = null;
+            $this->isComplete = true;
         }
     }
 
@@ -113,6 +116,7 @@ class StaffDiagnosis extends Component
         $this->selectedModel = null;
         $this->selectedProblem = null;
         $this->currentQuestion = null;
+        $this->isComplete = false;
 
         // Reload devices
         $this->devices = Device::all();
