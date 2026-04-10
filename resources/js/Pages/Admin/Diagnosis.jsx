@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
+import { hierarchy, linkHorizontal, select, tree as d3Tree, zoom, zoomIdentity } from 'd3';
 
 function escapeRegExp(str) {
     return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -155,6 +156,314 @@ function TreeNode({
     );
 }
 
+function D3TreeGraph({ roots, nodes, selectedId, onSelect, onNavigateBranch, searchTerm }) {
+    const wrapperRef = useRef(null);
+    const svgRef = useRef(null);
+    const zoomBehaviorRef = useRef(null);
+    const contentBoundsRef = useRef({ width: 0, height: 0 });
+    const currentTransformRef = useRef(zoomIdentity);
+    const nodeCoordsRef = useRef({});
+
+    const graphData = useMemo(() => {
+        if (!nodes || !roots?.length) return null;
+
+        const buildNode = (id, lineage = new Set(), branch = null) => {
+            const node = nodes?.[id];
+            if (!node) return null;
+
+            if (lineage.has(id)) {
+                return {
+                    id,
+                    text: `#${id} (cycle)`,
+                    branch,
+                    children: [],
+                };
+            }
+
+            const nextLineage = new Set(lineage);
+            nextLineage.add(id);
+            const children = [];
+
+            if (node.yes) {
+                const yes = buildNode(Number(node.yes), nextLineage, 'YES');
+                if (yes) children.push(yes);
+            }
+            if (node.no) {
+                const no = buildNode(Number(node.no), nextLineage, 'NO');
+                if (no) children.push(no);
+            }
+
+            return {
+                id: node.id,
+                text: node.text ?? '',
+                branch,
+                children,
+            };
+        };
+
+        const children = roots.map((id) => buildNode(Number(id))).filter(Boolean);
+        if (!children.length) return null;
+
+        return { id: 'root', text: 'Root', children };
+    }, [roots, nodes]);
+
+    const centerOnNode = (nodeId, targetScale = null) => {
+        const svgEl = svgRef.current;
+        const wrapEl = wrapperRef.current;
+        const behavior = zoomBehaviorRef.current;
+        const coords = nodeCoordsRef.current[String(nodeId)];
+        if (!svgEl || !wrapEl || !behavior || !coords) return;
+
+        const current = currentTransformRef.current || zoomIdentity;
+        const nextScale = targetScale || current.k || 1;
+        const tx = wrapEl.clientWidth / 2 - coords.absX * nextScale;
+        const ty = wrapEl.clientHeight / 2 - coords.absY * nextScale;
+        const transform = zoomIdentity.translate(tx, ty).scale(nextScale);
+        select(svgEl).transition().duration(220).call(behavior.transform, transform);
+    };
+
+    useEffect(() => {
+        const svgEl = svgRef.current;
+        const wrapEl = wrapperRef.current;
+        if (!svgEl || !wrapEl) return;
+
+        const svg = select(svgEl);
+        svg.selectAll('*').remove();
+
+        if (!graphData?.children?.length) return;
+
+        const root = hierarchy(graphData);
+        d3Tree().nodeSize([56, 240])(root);
+
+        const points = root.descendants().filter((d) => d.data.id !== 'root');
+        if (!points.length) return;
+
+        const minX = Math.min(...points.map((d) => d.x));
+        const maxX = Math.max(...points.map((d) => d.x));
+        const levels = Math.max(...points.map((d) => d.depth));
+
+        const containerWidth = Math.max(900, wrapEl.clientWidth || 900);
+        const width = Math.max(containerWidth, levels * 240 + 460);
+        const height = Math.max(380, maxX - minX + 140);
+        const topPad = 50 - minX;
+        const leftPad = 70;
+
+        svg.attr('viewBox', `0 0 ${width} ${height}`);
+        svg.attr('preserveAspectRatio', 'xMinYMin meet');
+
+        const viewport = svg.append('g').attr('class', 'zoom-viewport');
+        const g = viewport.append('g').attr('transform', `translate(${leftPad},${topPad})`);
+
+        contentBoundsRef.current = { width, height };
+
+        const fitScale = Math.max(0.25, Math.min(1, (wrapEl.clientWidth - 24) / width));
+        const initialTransform = zoomIdentity.translate(10, 10).scale(fitScale);
+
+        const behavior = zoom()
+            .scaleExtent([0.25, 2.5])
+            .filter((event) => {
+                if (event.type === 'wheel') return true;
+                return !event.button || event.button === 0;
+            })
+            .on('zoom', (event) => {
+                currentTransformRef.current = event.transform;
+                viewport.attr('transform', event.transform);
+            });
+
+        zoomBehaviorRef.current = behavior;
+        svg.call(behavior);
+        svg.call(behavior.transform, initialTransform);
+        svg.on('dblclick.zoom', null);
+
+        g.append('g')
+            .selectAll('path')
+            .data(root.links().filter((link) => link.source.data.id !== 'root'))
+            .join('path')
+            .attr('fill', 'none')
+            .attr('stroke-width', 2)
+            .attr('stroke', (d) => (d.target.data.branch === 'YES' ? '#16a34a' : '#dc2626'))
+            .attr(
+                'd',
+                linkHorizontal()
+                    .x((d) => d.y)
+                    .y((d) => d.x)
+            );
+
+        const q = String(searchTerm || '').trim().toLowerCase();
+
+        const coords = {};
+        points.forEach((d) => {
+            coords[String(d.data.id)] = {
+                absX: leftPad + d.y,
+                absY: topPad + d.x,
+            };
+        });
+        nodeCoordsRef.current = coords;
+
+        const nodesG = g.append('g').selectAll('g').data(points).join('g').attr('transform', (d) => `translate(${d.y},${d.x})`);
+
+        nodesG
+            .append('circle')
+            .attr('r', 8)
+            .attr('cursor', 'pointer')
+            .attr('fill', (d) => {
+                const isSelected = String(selectedId) === String(d.data.id);
+                if (isSelected) return '#2563eb';
+                const hit = q && `${d.data.id} ${d.data.text}`.toLowerCase().includes(q);
+                return hit ? '#f59e0b' : '#ffffff';
+            })
+            .attr('stroke', (d) => (String(selectedId) === String(d.data.id) ? '#1d4ed8' : '#475569'))
+            .attr('stroke-width', (d) => (String(selectedId) === String(d.data.id) ? 2.5 : 1.5))
+            .on('click', (_, d) => onSelect?.(String(d.data.id)));
+
+        nodesG.on('dblclick', (_, d) => {
+            const nodeId = String(d.data.id);
+            onSelect?.(nodeId);
+            centerOnNode(nodeId, 1.6);
+        });
+
+        nodesG
+            .append('text')
+            .attr('x', 14)
+            .attr('y', -3)
+            .style('font-size', '12px')
+            .style('font-weight', '700')
+            .style('fill', '#334155')
+            .text((d) => `#${d.data.id}`);
+
+        nodesG
+            .append('text')
+            .attr('x', 14)
+            .attr('y', 14)
+            .style('font-size', '12px')
+            .style('fill', '#0f172a')
+            .text((d) => {
+                const text = String(d.data.text || '');
+                return text.length > 44 ? `${text.slice(0, 44)}...` : text;
+            });
+
+        const branchItems = [];
+        points.forEach((d) => {
+            const modelNode = nodes?.[d.data.id];
+            if (!modelNode) return;
+            if (modelNode.yes) {
+                branchItems.push({
+                    key: `${d.data.id}-yes`,
+                    targetId: String(modelNode.yes),
+                    label: 'YES',
+                    x: d.y + 124,
+                    y: d.x - 14,
+                    bg: '#dcfce7',
+                    text: '#15803d',
+                });
+            }
+            if (modelNode.no) {
+                branchItems.push({
+                    key: `${d.data.id}-no`,
+                    targetId: String(modelNode.no),
+                    label: 'NO',
+                    x: d.y + 124,
+                    y: d.x + 6,
+                    bg: '#fee2e2',
+                    text: '#b91c1c',
+                });
+            }
+        });
+
+        const branchG = g.append('g').selectAll('g').data(branchItems).join('g').attr('transform', (d) => `translate(${d.x},${d.y})`);
+
+        branchG
+            .append('rect')
+            .attr('width', 44)
+            .attr('height', 16)
+            .attr('rx', 6)
+            .attr('fill', (d) => d.bg)
+            .attr('cursor', 'pointer')
+            .on('click', (_, d) => {
+                onNavigateBranch?.(d.targetId);
+                centerOnNode(d.targetId, 1.45);
+            });
+
+        branchG
+            .append('text')
+            .attr('x', 22)
+            .attr('y', 11.5)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '10px')
+            .style('font-weight', '700')
+            .style('fill', (d) => d.text)
+            .style('pointer-events', 'none')
+            .text((d) => d.label);
+
+        nodesG.append('title').text((d) => `#${d.data.id} ${d.data.text || ''}`);
+    }, [graphData, selectedId, onSelect, onNavigateBranch, searchTerm, nodes]);
+
+    const zoomByFactor = (factor) => {
+        const svgEl = svgRef.current;
+        const behavior = zoomBehaviorRef.current;
+        if (!svgEl || !behavior) return;
+        select(svgEl).transition().duration(180).call(behavior.scaleBy, factor);
+    };
+
+    const resetZoom = () => {
+        const svgEl = svgRef.current;
+        const wrapEl = wrapperRef.current;
+        const behavior = zoomBehaviorRef.current;
+        const { width } = contentBoundsRef.current;
+        if (!svgEl || !wrapEl || !behavior || !width) return;
+        const fitScale = Math.max(0.25, Math.min(1, (wrapEl.clientWidth - 24) / width));
+        const transform = zoomIdentity.translate(10, 10).scale(fitScale);
+        select(svgEl).transition().duration(220).call(behavior.transform, transform);
+    };
+
+    const zoomToSelected = () => {
+        if (!selectedId) return;
+        centerOnNode(String(selectedId), 1.55);
+    };
+
+    return (
+        <div className="rounded-lg border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">D3 Diagram</div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => zoomByFactor(1.2)}
+                        className="rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        Zoom +
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => zoomByFactor(0.85)}
+                        className="rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        Zoom -
+                    </button>
+                    <button
+                        type="button"
+                        onClick={zoomToSelected}
+                        disabled={!selectedId}
+                        className="rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        Zoom Node
+                    </button>
+                    <button
+                        type="button"
+                        onClick={resetZoom}
+                        className="rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        Reset
+                    </button>
+                </div>
+            </div>
+            <div ref={wrapperRef} className="max-h-[70vh] overflow-hidden">
+                <svg ref={svgRef} className="h-[72vh] min-h-[380px] w-full cursor-grab active:cursor-grabbing" />
+            </div>
+        </div>
+    );
+}
+
 export default function Diagnosis({ devices, brands, models, problems }) {
     const { flash } = usePage().props;
 
@@ -170,6 +479,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [focusMode, setFocusMode] = useState(false);
     const [compactMode, setCompactMode] = useState(true);
+    const [treeViewMode, setTreeViewMode] = useState('d3');
 
     const [sourceProblemId, setSourceProblemId] = useState('');
     const [sourceQuestions, setSourceQuestions] = useState([]);
@@ -323,6 +633,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         setSearchTerm('');
         setFocusMode(false);
         setCompactMode(true);
+        setTreeViewMode('d3');
     }, [selectedDeviceId]);
 
     useEffect(() => {
@@ -335,6 +646,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         setSearchTerm('');
         setFocusMode(false);
         setCompactMode(true);
+        setTreeViewMode('d3');
     }, [selectedBrandId]);
 
     useEffect(() => {
@@ -346,6 +658,7 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         setSearchTerm('');
         setFocusMode(false);
         setCompactMode(true);
+        setTreeViewMode('d3');
     }, [selectedModelId]);
 
     useEffect(() => {
@@ -390,16 +703,34 @@ export default function Diagnosis({ devices, brands, models, problems }) {
         cloneForm.data.source_problem_id &&
         cloneForm.data.source_question_id &&
         cloneForm.data.target_problem_id &&
-        (cloneForm.data.attach_mode === 'root' || cloneForm.data.target_attach_question_id);
+        (cloneForm.data.attach_mode === 'root' || cloneForm.data.target_attach_question_id || selectedNodeId);
 
     const submitClone = (e) => {
         e.preventDefault();
-        cloneForm.post('/admin/diagnosis/clone', {
+        const effectiveTargetAttachId =
+            cloneForm.data.attach_mode === 'root'
+                ? ''
+                : cloneForm.data.target_attach_question_id || selectedNodeId || '';
+
+        cloneForm
+            .transform((data) => ({
+                ...data,
+                target_attach_question_id: effectiveTargetAttachId,
+            }))
+            .post('/admin/diagnosis/clone', {
             preserveScroll: true,
             onSuccess: () => {
                 refreshTarget();
             },
+            onFinish: () => {
+                cloneForm.transform((data) => data);
+            },
         });
+    };
+
+    const useSelectedAsAttachTarget = () => {
+        if (!selectedNodeId || cloneForm.data.attach_mode === 'root') return;
+        cloneForm.setData('target_attach_question_id', String(selectedNodeId));
     };
 
     useEffect(() => {
@@ -581,6 +912,26 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                     {selectedProblemId ? (
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                             <div className="flex flex-wrap items-center gap-2">
+                                <div className="mr-2 inline-flex overflow-hidden rounded-md border border-gray-300 bg-white">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTreeViewMode('d3')}
+                                        className={`px-3 py-1.5 text-xs font-semibold ${
+                                            treeViewMode === 'd3' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        D3 Tree
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTreeViewMode('card')}
+                                        className={`border-l border-gray-300 px-3 py-1.5 text-xs font-semibold ${
+                                            treeViewMode === 'card' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        Card Tree
+                                    </button>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={expandAll}
@@ -662,22 +1013,36 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                                     Multiple root questions detected ({tree.roots.length}). This usually means the flow has disconnected parts.
                                 </div>
                             ) : null}
-                            <div className="max-h-[70vh] overflow-auto pr-2">
-                                {focusRoots.map((rootId) => (
-                                    <TreeNode
-                                        key={rootId}
-                                        nodeId={rootId}
-                                        nodes={tree.nodes}
-                                        expanded={expanded}
-                                        toggle={toggle}
-                                        selectedId={selectedNodeId}
-                                        onSelect={(id) => setSelectedNodeId(String(id))}
-                                        visibleSet={visibleSet}
-                                        searchTerm={searchTerm}
-                                        compactMode={compactMode}
-                                    />
-                                ))}
-                            </div>
+                            {treeViewMode === 'd3' ? (
+                                <D3TreeGraph
+                                    roots={focusRoots}
+                                    nodes={tree.nodes}
+                                    selectedId={selectedNodeId}
+                                    onSelect={(id) => setSelectedNodeId(String(id))}
+                                    onNavigateBranch={(nextId) => {
+                                        setSelectedNodeId(String(nextId));
+                                        setFocusMode(true);
+                                    }}
+                                    searchTerm={searchTerm}
+                                />
+                            ) : (
+                                <div className="max-h-[70vh] overflow-auto pr-2">
+                                    {focusRoots.map((rootId) => (
+                                        <TreeNode
+                                            key={rootId}
+                                            nodeId={rootId}
+                                            nodes={tree.nodes}
+                                            expanded={expanded}
+                                            toggle={toggle}
+                                            selectedId={selectedNodeId}
+                                            onSelect={(id) => setSelectedNodeId(String(id))}
+                                            visibleSet={visibleSet}
+                                            searchTerm={searchTerm}
+                                            compactMode={compactMode}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                             </div>
 
                             <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4 lg:mt-0 lg:w-[380px] lg:shrink-0 lg:sticky lg:top-20 max-h-[70vh] overflow-auto">
@@ -792,6 +1157,16 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                         onChange={(e) => setCloneSearch(e.target.value)}
                     />
                 </div>
+                <div className="mt-2">
+                    <button
+                        type="button"
+                        onClick={useSelectedAsAttachTarget}
+                        disabled={!selectedNodeId || cloneForm.data.attach_mode === 'root'}
+                        className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                    >
+                        Use Selected Tree Node as Attach Target
+                    </button>
+                </div>
 
                 <form className="mt-4 grid gap-4 md:grid-cols-3" onSubmit={submitClone}>
                     <div>
@@ -857,7 +1232,9 @@ export default function Diagnosis({ devices, brands, models, problems }) {
                                     </option>
                                 ))}
                             </select>
-                            <div className="mt-1 text-xs text-gray-500">Choose where the cloned sub-flow should continue.</div>
+                            <div className="mt-1 text-xs text-gray-500">
+                                Choose where the cloned sub-flow should continue. If empty, selected tree node is used.
+                            </div>
                         </div>
                     ) : (
                         <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">

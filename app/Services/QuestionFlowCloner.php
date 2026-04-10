@@ -10,6 +10,9 @@ class QuestionFlowCloner
     /**
      * Clone a subtree (starting at $sourceQuestionId) into $targetProblemId and attach it.
      *
+     * Note: we copy image_url but DO NOT copy image_file_id to avoid accidental
+     * deletion of the original ImageKit asset when editing/removing the cloned question.
+     *
      * @return array{cloned_root_id:int, cloned_count:int}
      */
     public function cloneAndAttach(
@@ -24,7 +27,7 @@ class QuestionFlowCloner
 
         return DB::transaction(function () use ($sourceQuestionId, $targetProblemId, $attachMode, $targetAttachQuestionId) {
             if ($attachMode === 'root' && Question::query()->where('problem_id', $targetProblemId)->exists()) {
-                throw new \RuntimeException('Target problem already has questions. Attach to a Yes/No branch instead of Root.');
+                throw new \RuntimeException('Target problem already has questions. Attach to YES/NO instead of ROOT.');
             }
 
             $idMap = [];
@@ -48,17 +51,17 @@ class QuestionFlowCloner
                 ->first();
 
             if (!$targetAttachQuestion) {
-                throw new \RuntimeException('Target attach question not found for the selected target problem.');
+                throw new \RuntimeException('Target attach question not found for this problem.');
             }
 
             if ($attachMode === 'yes') {
                 if ($targetAttachQuestion->yes_question_id) {
-                    throw new \RuntimeException('Target question already has a YES branch. Clear it before attaching a cloned flow.');
+                    throw new \RuntimeException('Target question already has a YES branch.');
                 }
                 $targetAttachQuestion->yes_question_id = $clonedRootId;
             } else {
                 if ($targetAttachQuestion->no_question_id) {
-                    throw new \RuntimeException('Target question already has a NO branch. Clear it before attaching a cloned flow.');
+                    throw new \RuntimeException('Target question already has a NO branch.');
                 }
                 $targetAttachQuestion->no_question_id = $clonedRootId;
             }
@@ -92,6 +95,9 @@ class QuestionFlowCloner
         $copy = Question::create([
             'problem_id' => $targetProblemId,
             'question_text' => $source->question_text,
+            'description' => $source->description,
+            'image_url' => $source->image_url,
+            'image_file_id' => null,
             'yes_question_id' => null,
             'no_question_id' => null,
         ]);

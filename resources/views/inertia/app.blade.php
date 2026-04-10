@@ -7,6 +7,7 @@
 
         <title>{{ config('app.name', 'NovaFix Support') }}</title>
 
+        @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.jsx'])
         @inertiaHead
     </head>
